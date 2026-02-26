@@ -1,0 +1,71 @@
+import pandas as pd
+import re
+import os
+from collections import Counter
+from textblob import TextBlob
+import nltk
+from nltk.corpus import stopwords
+
+# Ensure necessary NLP assets are available
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
+
+def analyze_abc_hut_data(file_path):
+    """
+    Main pipeline to ingest, clean, and analyze pizza feedback.
+    """
+    # 1. Validation and Ingestion
+    if not os.path.exists(file_path):
+        return f"Error: File not found at {file_path}"
+
+    try:
+        df = pd.read_csv(file_path)
+        if 'Description' not in df.columns:
+            return "Error: CSV must contain a 'Description' column."
+        
+        # Drop empty rows in the description column
+        df = df.dropna(subset=['Description'])
+        
+        # 2. Preprocessing
+        stop_words = set(stopwords.words('english'))
+        
+        def clean_text(text):
+            text = str(text).lower()
+            text = re.sub(r'[^a-z\s]', '', text) # Remove punctuation
+            return " ".join([w for w in text.split() if w not in stop_words])
+
+        df['Cleaned'] = df['Description'].apply(clean_text)
+
+        # 3. Analysis: Sentiment & Frequency
+        df['Sentiment'] = df['Description'].apply(lambda x: TextBlob(str(x)).sentiment.polarity)
+        df['Sentiment_Label'] = df['Sentiment'].apply(
+            lambda x: 'Positive' if x > 0.1 else ('Negative' if x < -0.1 else 'Neutral')
+        )
+
+        all_words = " ".join(df['Cleaned']).split()
+        top_10 = Counter(all_words).most_common(10)
+
+        # 4. Output UI
+        print("="*60)
+        print("ABC-Hut : Voice of Customer on Pizza".center(60))
+        print(f"Source: {file_path}".center(60))
+        print("="*60)
+        print(f"Total Feedback Records: {len(df)}")
+        print(f"Unique Keywords:        {len(set(all_words))}")
+        print("-" * 60)
+        print(f"{'Top 10 Keywords':<20} | {'Frequency'}")
+        for word, count in top_10:
+            print(f"{word:<20} | {count}")
+        print("-" * 60)
+        print("Sentiment Summary:")
+        print(df['Sentiment_Label'].value_counts(normalize=True).map(lambda n: f'{n:.1%}'))
+        print("="*60)
+
+    except Exception as e:
+        print(f"Process failed: {e}")
+
+# Hardcoded path as requested
+my_path = "/Users/nagunambi/Documents/pizza_feedback.csv"
+analyze_abc_hut_data(my_path)
