@@ -1,0 +1,56 @@
+import gradio as gr
+import pandas as pd
+from collections import Counter
+import re
+
+def analyze_pizza_feedback(text):
+    """
+    Cleans the input text and calculates word statistics.
+    """
+    if not text or len(text.strip()) == 0:
+        return "Please enter some feedback.", None
+
+    # 1. Preprocessing: Lowercase and remove punctuation
+    clean_text = re.sub(r'[^a-zA-Z\s]', '', text.lower())
+    words = clean_text.split()
+    
+    if not words:
+        return "No valid words found.", None
+
+    # 2. Calculations
+    total_count = len(words)
+    word_freq = Counter(words).most_common(10)
+    
+    # 3. Format as a readable table for the UI
+    freq_df = pd.DataFrame(word_freq, columns=["Word", "Frequency"])
+    
+    summary = f"Total Words Analyzed: {total_count}"
+    return summary, freq_df
+
+# --- Gradio UI Layout ---
+with gr.Blocks(title="ABC-Hut: Voice of Customer") as demo:
+    gr.Markdown("# 🍕 ABC-Hut: Pizza Feedback Analyzer")
+    gr.Markdown("Paste customer reviews below to see trending keywords and word counts.")
+    
+    with gr.Row():
+        with gr.Column():
+            input_text = gr.Textbox(
+                label="Customer Feedback", 
+                placeholder="The pizza crust was crispy and the cheese was perfect...",
+                lines=10
+            )
+            submit_btn = gr.Button("Analyze Feedback", variant="primary")
+        
+        with gr.Column():
+            output_summary = gr.Text(label="Analysis Summary")
+            output_table = gr.Dataframe(label="Top 10 Most Frequent Words")
+
+    # Connect the button to the function
+    submit_btn.click(
+        fn=analyze_pizza_feedback, 
+        inputs=input_text, 
+        outputs=[output_summary, output_table]
+    )
+
+if __name__ == "__main__":
+    demo.launch()
